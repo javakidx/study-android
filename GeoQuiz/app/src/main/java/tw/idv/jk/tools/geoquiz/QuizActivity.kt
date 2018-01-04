@@ -1,6 +1,7 @@
 package tw.idv.jk.tools.geoquiz
 
 import android.app.Activity
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.view.View
@@ -15,10 +16,13 @@ class QuizActivity : Activity() {
     private var nextButton: ImageButton? = null
     private var previousButton: ImageButton? = null
     private var questionText: TextView? = null
+    private var cheatButton: Button? = null
+    private var isCheater: Boolean = false
 
     companion object {
         private val TAG = "QuizActivity"
         private val KEY_INDEX = "index"
+        private val REQUEST_CODE_CHEAT = 0
     }
 
     private val questionBank = arrayOf(Question(R.string.question_oceans, true),
@@ -52,12 +56,12 @@ class QuizActivity : Activity() {
 
         questionText = findViewById<TextView>(R.id.question_text) as TextView
 //        questionText?.setText(this.questionBank[currentIndex].textResourceId)
-        updateQuestion()
 
-        questionText?.setOnClickListener(nextItemListen)
+
+        questionText?.setOnClickListener(nextItemListener)
 
         nextButton = findViewById<ImageButton>(R.id.next_button) as ImageButton
-        nextButton?.setOnClickListener(nextItemListen)
+        nextButton?.setOnClickListener(nextItemListener)
 
         previousButton = findViewById<ImageButton>(R.id.previous_button) as ImageButton
         previousButton?.setOnClickListener {
@@ -68,6 +72,16 @@ class QuizActivity : Activity() {
 //            questionText?.setText(questionBank[currentIndex].textResourceId)
             updateQuestion()
         }
+
+        cheatButton = findViewById<Button>(R.id.cheat_button) as Button
+        cheatButton?.setOnClickListener {
+            val answerIsTrue = questionBank[currentIndex].answerTrue
+            val i = CheatActivity.newIntent(this, answerIsTrue)
+
+//            startActivity(i)
+            startActivityForResult(i, REQUEST_CODE_CHEAT)
+        }
+        updateQuestion()
     }
 
     override fun onStart() {
@@ -98,7 +112,7 @@ class QuizActivity : Activity() {
         Log.d(TAG, "onDestroy() called")
     }
 
-    private val nextItemListen = View.OnClickListener {
+    private val nextItemListener = View.OnClickListener {
         currentIndex = (currentIndex + 1) % questionBank.size
 //            questionText?.setText(questionBank[currentIndex].textResourceId)
         updateQuestion()
@@ -107,14 +121,19 @@ class QuizActivity : Activity() {
     private fun updateQuestion() {
         val question = questionBank[currentIndex].textResourceId
         questionText?.setText(question)
+        isCheater = false
     }
 
     private fun checkAnswer(userPressedTrue: Boolean) {
         val answerIsTrue = questionBank[currentIndex].answerTrue
 
-        val messageResourceId = when(userPressedTrue) {
-            answerIsTrue -> R.string.correct_toast
-            else -> R.string.incorrect_toast
+        val messageResourceId = if (isCheater) {
+            R.string.judgment_toast
+        } else {
+            when (userPressedTrue) {
+                answerIsTrue -> R.string.correct_toast
+                else -> R.string.incorrect_toast
+            }
         }
 
         Toast.makeText(this@QuizActivity, messageResourceId, Toast.LENGTH_LONG).show()
@@ -125,5 +144,15 @@ class QuizActivity : Activity() {
 
         Log.d(TAG, "onSaveInstanceState() called")
         outState?.putInt(KEY_INDEX, currentIndex)
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        if (resultCode != RESULT_OK || data == null) {
+            return
+        }
+
+        if (requestCode == REQUEST_CODE_CHEAT) {
+            isCheater = CheatActivity.wasAnswerShown(data)
+        }
     }
 }
